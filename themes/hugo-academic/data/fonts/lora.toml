@@ -1,0 +1,11 @@
+# Font style metadata
+name = "lora"
+
+# Optional Google font URL
+google_fonts = "Lora"
+
+# Font families
+heading_font = "Lora"
+body_font = "Lora"
+nav_font = "Lora"
+mono_font = "Lora"

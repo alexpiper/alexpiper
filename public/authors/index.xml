@@ -1,0 +1,105 @@
+<?xml version="1.0" encoding="utf-8" standalone="yes" ?>
+<rss version="2.0" xmlns:atom="http://www.w3.org/2005/Atom">
+  <channel>
+    <title>Authors | Alexander Piper</title>
+    <link>/authors/</link>
+      <atom:link href="/authors/index.xml" rel="self" type="application/rss+xml" />
+    <description>Authors</description>
+    <generator>Source Themes Academic (https://sourcethemes.com/academic/)</generator><language>en-us</language><copyright>© 2019 Alexander Piper</copyright><lastBuildDate>Tue, 01 Jan 2019 00:00:00 +0000</lastBuildDate>
+    <image>
+      <url>/img/icon-192.png</url>
+      <title>Authors</title>
+      <link>/authors/</link>
+    </image>
+    
+    <item>
+      <title>AM Piper</title>
+      <link>/authors/am-piper/</link>
+      <pubDate>Tue, 01 Jan 2019 00:00:00 +0000</pubDate>
+      <guid>/authors/am-piper/</guid>
+      <description></description>
+    </item>
+    
+    <item>
+      <title>BC Rodoni</title>
+      <link>/authors/bc-rodoni/</link>
+      <pubDate>Tue, 01 Jan 2019 00:00:00 +0000</pubDate>
+      <guid>/authors/bc-rodoni/</guid>
+      <description></description>
+    </item>
+    
+    <item>
+      <title>J Batovska</title>
+      <link>/authors/j-batovska/</link>
+      <pubDate>Tue, 01 Jan 2019 00:00:00 +0000</pubDate>
+      <guid>/authors/j-batovska/</guid>
+      <description></description>
+    </item>
+    
+    <item>
+      <title>J Weiss</title>
+      <link>/authors/j-weiss/</link>
+      <pubDate>Tue, 01 Jan 2019 00:00:00 +0000</pubDate>
+      <guid>/authors/j-weiss/</guid>
+      <description></description>
+    </item>
+    
+    <item>
+      <title>JP Cunningham</title>
+      <link>/authors/jp-cunningham/</link>
+      <pubDate>Tue, 01 Jan 2019 00:00:00 +0000</pubDate>
+      <guid>/authors/jp-cunningham/</guid>
+      <description></description>
+    </item>
+    
+    <item>
+      <title>NOI Cogan</title>
+      <link>/authors/noi-cogan/</link>
+      <pubDate>Tue, 01 Jan 2019 00:00:00 +0000</pubDate>
+      <guid>/authors/noi-cogan/</guid>
+      <description></description>
+    </item>
+    
+    <item>
+      <title>{...}</title>
+      <link>/authors/.../</link>
+      <pubDate>Tue, 01 Jan 2019 00:00:00 +0000</pubDate>
+      <guid>/authors/.../</guid>
+      <description></description>
+    </item>
+    
+    <item>
+      <title>K Farnier</title>
+      <link>/authors/k-farnier/</link>
+      <pubDate>Sun, 01 Jan 2017 00:00:00 +0000</pubDate>
+      <guid>/authors/k-farnier/</guid>
+      <description></description>
+    </item>
+    
+    <item>
+      <title>R Speight</title>
+      <link>/authors/r-speight/</link>
+      <pubDate>Sun, 01 Jan 2017 00:00:00 +0000</pubDate>
+      <guid>/authors/r-speight/</guid>
+      <description></description>
+    </item>
+    
+    <item>
+      <title>T Linder</title>
+      <link>/authors/t-linder/</link>
+      <pubDate>Sun, 01 Jan 2017 00:00:00 +0000</pubDate>
+      <guid>/authors/t-linder/</guid>
+      <description></description>
+    </item>
+    
+    <item>
+      <title></title>
+      <link>/authors/admin/</link>
+      <pubDate>Mon, 01 Jan 0001 00:00:00 +0000</pubDate>
+      <guid>/authors/admin/</guid>
+      <description>&lt;p&gt;Alexander Piper is a research scientist with Agriculture Victoria Research and currently completing his PhD with La Trobe University. His research uses high-throughput sequencing and computational biology to improve detection and control of insect pests.&lt;/p&gt;
+</description>
+    </item>
+    
+  </channel>
+</rss>

@@ -1,0 +1,304 @@
+---
+title: "Geographic Visualisation of Ecological Data in R"
+author: "Alexander Piper"
+date: 2019-10-13
+categories: ["R"]
+tags: ["R", "geography", "visualisation"]
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE, warning = FALSE, error=FALSE, message=FALSE)
+```
+
+This short tutorial explains basic geographic data visualisation for ecologists. I assume a basic knowledge of R, however if you have never used R before you should be able to follow along and copy the below scripts. 
+
+If you do not currently have R installed you can download it [here](https://www.r-project.org/). I would also highly recommend downloading the [free RStudio editor](https://www.rstudio.com/products/rstudio/download/).
+
+For an introduction to R, i suggest the excelent and free [R for data science](https://r4ds.had.co.nz/) ebook by Hadley Wickham & Garrett Grolemund, as well as the interactive datacamp course [free introduction to R](https://www.datacamp.com/courses/free-introduction-to-r)
+
+# Plotting basic maps
+
+## Set up for analysis
+
+The first step for our analysis to set our working directory, and install the required R packages to run the analysis
+
+The packages we will install are:
+
+* tidyverse - This is a collection of handy packages for data manipulation, exploration and visualization
+* maptools - This package contains the base world map data we will use
+* devtools - This package will allow installation of packages that have not yet been released on CRAN, such as the below patchwork package, directly from github
+* patchwork - This package allows easily composition of multiplots
+
+```{r packages, eval=FALSE}
+setwd("/Users/alexanderpiper/Dropbox/R/Geographic") ##Change this to the directory you wish to work in
+
+#install packages from CRAN
+install.packages(c("tidyverse","maptools","devtools", "gpclib"))
+
+# install packages from github
+devtools::install_github("thomasp85/patchwork")
+```
+
+After packages are downloaded and installed, we then load them into our workspace
+
+```{r load packages, message=FALSE, error=FALSE}
+library("tidyverse")
+library("maptools")
+library("devtools")
+library("patchwork")
+```
+
+## Plotting a basic world map
+
+First step is to plot a basic world map. For this we will use the simple world map dataset contained within the maptools package
+
+```{r basic map}
+#Get the simple world map data
+data(wrld_simpl)
+wrld_simpl@data$id <- wrld_simpl@data$NAME
+gpclibPermit() # Give permissions to maptools to use gpclib
+wrld <- fortify(wrld_simpl, region="id")
+
+# Plot simple worldmap with ggplot
+wrld_plot <- ggplot() + geom_map(data=wrld, map=wrld, aes(map_id=id, x=long, y=lat)) + coord_equal() 
+
+#plot the map
+plot(wrld_plot)
+```
+
+## Changing the base map colours
+Now we make some small changes to the base map colours and background to make it more visible 
+
+```{r colour base map}
+wrld_plot <- ggplot() + geom_map(data=wrld, map=wrld, aes(map_id=id, x=long, y=lat), fill="lightgrey", color="#7f7f7f", size=0.25) + 
+  coord_equal() + 
+  theme_bw() #changes the theme to basic black and white
+
+#plot the map
+plot(wrld_plot)
+```
+
+
+Thats looking much better, but what if we only have a dataset within australia? We can subsert the map using geographic coordinates. 
+
+```{r subset map}
+aus_plot <- wrld_plot + coord_fixed(ylim = c(-50,0), xlim=c(110,180)) #change these for desired region 
+
+#plot the map of australia only
+plot(aus_plot)
+```
+
+# Part one: Specimen collection locations
+
+Now we want to plot some data on our map, for this we are plotting the collection locations of some tephritid fruit fly specimens from the Victorian Agricultural Insect Collection that i am using during my PhD
+
+```{r read data, message=FALSE, error=FALSE}
+#Read in our datafile
+obs.data <- read_csv("sampleloc.csv")
+head(obs.data) # display the top of the file
+```
+
+This data file contains 3 columns (or variables) and 259 entries. Many functions in R expect data to be in a long format rather than a wide format, ie: each column is a variable and each row is an entry. The variables in this dataset are: Sample ID, Collection location and Species. Your specific data file could have more or less columns depending on how many variables were recorded for your specimens and this is fine. 
+If we look at this we can notice a problem. The collection data i have been supplied alongside these specimens contains only the location name, rather than geographic coordinates, oops!
+
+Unfortunately R is not an encyclopedia, and will not know where to put these locations unless we can provide lattitude and longitude coordinates to match with those in our base map. For this dataset, i could manually correct this, by contacting the original specimen collectors, or doing a google maps search. However this could be very time consuming repetitive task for larger datasets.
+
+If you already have the lattitude and longitude info for your samples already, thank whoever collected your specimens for using their gps and [skip this section](#plotting-point-data), otherwise to solve this issue, we are going to get the computer to do the grunt work of geocoding for us.
+
+## Geocoding
+
+Geocoding is the process of converting locationes (i.e. "1 Ocean Avenue, Surfers Paradise QLD") into geographic coordinates (i.e. latitude -27.993412, and longitude 153.429921), which you can then use to place markers on a map.
+
+Online maps packages such as google maps and openstreetmaps allow you to query their API using HTML and geocode data. The package ggmaps contains a function to interface with the google maps api, however google now requires you to register and fill in credit card details to access this API 
+
+Instead, we will create a function to geocode our data using the openstreetmap api. You do not need to know the specifics of this code, but the basic idea is it searches a character string "location", and downloads the JSON formatted data from openstreetmap, then returns a data frame that contains the query adress, the longitude and lattitude.
+
+```{r geocode function}
+get_geocode <- function(location = NULL)
+{
+  if(suppressWarnings(is.null(location)))
+    return(data.frame())
+  tryCatch(
+    d <- jsonlite::fromJSON( 
+      gsub('\\@addr\\@', gsub('\\s+', '\\%20', location), 
+           'http://nominatim.openstreetmap.org/search/@addr@?format=json&locationdetails=0&limit=1')
+    ), error = function(c) return(data.frame())
+  )
+  if(length(d) == 0) return(data.frame())
+  return(data.frame(location,lon = as.numeric(d$lon), lat = as.numeric(d$lat)))
+}
+
+```
+
+Now that we have defined the get_geocode function in R, we can then apply it to every sample in in our dataset in order to retrieve the lattitude and longitude. As the input for the function is a character vector of locations, we will need to grab the location column from our dataset and put it in a new variable. To save time querying the openstreetmaps server, we will only get the unique location names from our dataset.
+
+```{r unique locations}
+#Get unique locations
+location <- unique(obs.data$location)
+
+#What does this look like?
+head(location)
+```
+
+You can see that instead of a dataframe, we now have a character vector
+
+We will then use lapply to apply our get_geocode function we to each of the elements in our character vector. This may take a few minutes depending on how many searches you are conducting and the speed of your internet connection.
+
+As using the get_geocode function will return a list of dataframes (one for each location in the vector), we will collapse this list into one big dataframe using the bind_rows functionality of the dplyr package (part of the tidyverse library we loaded earlier)
+
+```{r apply geocode, cache=TRUE}
+#lapply the function to all elements in the location vector
+coords <- lapply(location,get_geocode)
+
+#Collapse list of dataframes into one
+coords <- bind_rows(coords)
+
+#what does this look like?
+head(coords)
+```
+
+You can see we now have geographic coordinates for our collection locations, however they are in a seperate data frame to our original data frame that contains other info about the samples (ie: Species name)
+
+Therefore we will use the inner_join function of the dplyr package to join the 2 data frames together. As this relies on using a matching column between the two dataframes as a key, we need to make sure the key column is called the same thing. If it isnt, you can rename the columns in one of the data frames using the colnames() function
+
+```{r join dataframes}
+#join tables together
+samples_latlon <- inner_join(obs.data,coords,by="location")
+
+head(samples_latlon)
+```
+
+We now have all the original data, as well as the lattitude and longitude information in one data frame and can go back to plotting. First we will plot on a world map to see how our function did. If there are dots in locations you didnt expect, it will probably be a result of insuficient adress information to uniquely place a location it in the world. If this is so, we can write out the data frame into a csv that can be manually curated in Excel or other programs.
+
+```{r plot geocoded}
+# Plot simple worldmap with ggplot
+gg.geocoded <- ggplot(samples_latlon) + geom_map(data=wrld, map=wrld, aes(map_id=id, x=long, y=lat), fill="lightgrey", color="#7f7f7f", size=0.25)
+
+#Add data points
+gg.geocoded <- gg.geocoded + geom_point(aes(x=lon, y=lat, color=Species), alpha=.5) + theme(legend.position = "none") + coord_equal()
+
+plot(gg.geocoded)
+
+#we can see some errors, this is because there was not enough unique information recorded for an automated search, therefore manual curation will be required
+write.csv(samples_latlon, file="samples_latlon.csv")
+```
+
+# Plotting point data
+
+After some manual curation,we can read bck in the data and see how it looks
+
+```{r read curated data, message=FALSE, error=FALSE}
+#Read in our data
+cleaned.data <- read_csv("samples_latlon_curated.csv")
+
+# Plot simple worldmap with ggplot
+gg.curated <- ggplot(cleaned.data) + geom_map(data=wrld, map=wrld, aes(map_id=id, x=long, y=lat), fill="lightgrey", color="#7f7f7f", size=0.25) + geom_count(aes(x=Long, y=Lat, color=Species), alpha=.5) + 
+  theme_bw() + coord_fixed(ylim = c(-90,90), xlim=c(-180,180))  
+
+plot(gg.curated)
+
+#Subset to australia using geographic coordinates
+gg.curated <- gg.curated + coord_fixed(ylim = c(-50,0), xlim=c(110,180))  
+
+#Add data points, colouring by species
+gg.species <- gg.curated + geom_point(aes(x=Long, y=Lat, color=Species), alpha=.5) + 
+  theme_bw() 
+
+plot(gg.species)
+```
+
+We can also adjust the point size to change with the number of entries with the same geographic coordinates by changing geom_point to geom_count
+
+```{r size}
+#Add data points, colouring by species
+gg.species <- gg.curated + geom_count(aes(x=Long, y=Lat, color=Species), alpha=.5) + 
+  theme_bw() 
+
+plot(gg.species)
+```
+
+## Customising colours
+
+Finally, we can play with the colours and aesthetics of our map. I am applying the 'Spectral' pallette from the colourbrewer package in R. You can see more colour brewer palettes [here](http://colorbrewer2.org)
+
+```{r customise colours}
+#Change colours of data points
+
+gg.col1 <- gg.species +
+  scale_color_brewer(palette= "Spectral")
+gg.col2 <- gg.species +
+  scale_color_brewer(palette= "PrGn")
+gg.col3 <- gg.species +
+  scale_color_brewer(palette= "RdYlBu")
+
+#Change colours manually
+custom.palette <- c("#d73027","#f46d43","#fdae61","#fee08b","#ffffbf","#d9ef8b","#a6d96a","#66bd63","#1a9850")
+gg.col4 <- gg.species +
+  scale_color_manual(values=custom.palette,aesthetics="colour")
+
+#Plot multiplot using patchwork, removing the legend from all plots for easier viewing
+
+gg.col1 + gg.col2 + gg.col3 + gg.col4 & theme(legend.position = "none")
+
+#alternatively, we can colour by location
+gg.location <- gg.curated + geom_count(aes(x=Long, y=Lat, color=Locality), alpha=.5) + 
+  theme_bw() 
+plot(gg.location)
+
+```
+
+
+# Adding labels
+Ive decide that for this dataset it is best to colour by species, using the Spectral palette from colour brewer. So to finish up i will go ahead with that and add appropriate labels and titles to the plot
+
+```{r add labels}
+#Using spectral palette
+gg.species <- gg.species +
+  scale_color_brewer(palette= "Spectral")
+
+#Change legend titles
+gg.species <- gg.species + labs(size="No. Specimens")
+
+#Change x and y axis titles
+gg.species <- gg.species + xlab("Longitude") + ylab("Lattitude")
+
+#give the plot a title
+gg.species <- gg.species + labs(title="Collection locations of Tephritidae specimens")
+```
+
+
+# Conclusion
+
+I hope this tutorarial can help with your research. For simple code to create the entire map without tutorial comments interspaced, see below:
+
+```{r final map}
+#Get the simple world map data
+data(wrld_simpl)
+wrld_simpl@data$id <- wrld_simpl@data$NAME
+wrld <- fortify(wrld_simpl, region="id")
+
+#Read in our data
+cleaned.data <- read_csv("samples_latlon_curated.csv")
+
+# Plot map of australia with ggplot
+gg.finalmap <- ggplot(cleaned.data) + geom_map(data=wrld, map=wrld, aes(map_id=id, x=long, y=lat), fill="lightgrey", color="#7f7f7f", size=0.25)  + coord_fixed(ylim = c(-50,0), xlim=c(110,180))  
+
+#Add data points
+gg.finalmap <- gg.finalmap + geom_count(aes(x=Long, y=Lat, color=Species), alpha=.5) + 
+  theme_bw()  +
+  scale_color_brewer(palette= "Spectral") + 
+  labs(size="No. Specimens") + 
+  xlab("Longitude") + 
+  ylab("Lattitude") + 
+  labs(title="Collection locations of Tephritidae specimens")
+
+plot(gg.finalmap)
+```
+
+The versions of the packages used in creating this document can be found below. To view the original rmarkdown code, use the button in the top left corner.
+
+## session info
+
+```{r session info}
+sessionInfo()
+```
